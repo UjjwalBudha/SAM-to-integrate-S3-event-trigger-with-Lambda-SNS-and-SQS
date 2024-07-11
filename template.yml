@@ -111,10 +111,6 @@ Resources:
             Resource: !GetAtt MySqsQueue.Arn
           - Effect: Allow
             Action:
-            - sns:Publish
-            Resource: !Ref MySnsTopic
-          - Effect: Allow
-            Action:
             - logs:CreateLogGroup
             - logs:CreateLogStream
             - logs:PutLogEvents
@@ -122,8 +118,37 @@ Resources:
     Metadata:
       SamResourceId: MyLambdaExecutionRole
 
+  # Lambda SNS Full Access Policy
+  LambdaSNSFullAccessPolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: LambdaSNSFullAccessPolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: 'sns:*'
+            Resource: '*'
+      Roles:
+        - !Ref MyLambdaExecutionRole
+
   LambdaLogGroup:
     Type: 'AWS::Logs::LogGroup'
     Properties:
-      LogGroupName: /aws/lambda/lambda-function-ujwal-test001
+      LogGroupName: /aws/lambda/lambda-function-ujwal-test01
       RetentionInDays: 14
+
+
+# SNS FULL ACCESS
+# {
+#     "Version": "2012-10-17",
+#     "Statement": [
+#         {
+#             "Action": [
+#                 "sns:*"
+#             ],
+#             "Effect": "Allow",
+#             "Resource": "*"
+#         }
+#     ]
+# }
