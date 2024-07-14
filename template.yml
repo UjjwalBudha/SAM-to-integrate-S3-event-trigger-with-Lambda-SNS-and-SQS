@@ -137,18 +137,3 @@ Resources:
     Properties:
       LogGroupName: /aws/lambda/lambda-function-ujwal-test01
       RetentionInDays: 14
-
-
-# SNS FULL ACCESS
-# {
-#     "Version": "2012-10-17",
-#     "Statement": [
-#         {
-#             "Action": [
-#                 "sns:*"
-#             ],
-#             "Effect": "Allow",
-#             "Resource": "*"
-#         }
-#     ]
-# }
