@@ -1,0 +1,139 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: SAM template for S3, SNS, SQS, and Lambda integration
+
+Resources:
+  # SQS Queue
+  MySqsQueue:
+    Type: 'AWS::SQS::Queue'
+    Properties:
+      QueueName: 'sqs-queue-ujwal-test01'
+
+  # SQS Queue Policy
+  MySqsQueuePolicy:
+    Type: 'AWS::SQS::QueuePolicy'
+    Properties:
+      Queues:
+        - !Ref MySqsQueue
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: s3.amazonaws.com
+            Action: 'sqs:SendMessage'
+            Resource: !GetAtt MySqsQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !GetAtt MyS3Bucket.Arn
+
+  # S3 Bucket
+  MyS3Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: ujwal-s3-bucket-test01
+      NotificationConfiguration:
+        QueueConfigurations:
+          - Event: s3:ObjectCreated:*
+            Queue: !GetAtt MySqsQueue.Arn
+
+  # SNS Topic
+  MySnsTopic:
+    Type: 'AWS::SNS::Topic'
+    Properties:
+      TopicName: 'sns-topic-ujwal-test01'
+
+  # SNS Subscription to Email
+  MySnsSubscription:
+    Type: 'AWS::SNS::Subscription'
+    Properties:
+      TopicArn: !Ref MySnsTopic
+      Protocol: email
+      Endpoint: 'utam.budha143@gmail.com' 
+
+  # SNS Subscription to SQS
+  MySnsSqsSubscription:
+    Type: 'AWS::SNS::Subscription'
+    Properties:
+      TopicArn: !Ref MySnsTopic
+      Protocol: sqs
+      Endpoint: !GetAtt MySqsQueue.Arn
+      RawMessageDelivery: true
+
+  # Lambda Function
+  MyLambdaFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: 'lambda-function-ujwal-test01'
+      Handler: 'lambda_function.lambda_handler'
+      Runtime: 'python3.9'
+      CodeUri: './lambda-handler'
+      MemorySize: 128
+      Timeout: 10
+      Environment:
+        Variables:
+          SQS_QUEUE_URL: !Ref MySqsQueue
+          SNS_TOPIC_ARN: !Ref MySnsTopic
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt MySqsQueue.Arn
+      Policies:
+        - SNSPublishMessagePolicy:
+            TopicName: 
+              Ref: MySnsTopic
+
+  # Lambda Execution Role
+  MyLambdaExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: sts:AssumeRole
+      Policies:
+      - PolicyName: LambdaS3SQSSNSPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - s3:GetObject
+            - s3:ListBucket
+            Resource: arn:aws:s3:::ujwal-s3-bucket-test01/*
+          - Effect: Allow
+            Action:
+            - sqs:SendMessage
+            Resource: !GetAtt MySqsQueue.Arn
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: arn:aws:logs:*:*:log-group:/aws/lambda/*:*:*
+    Metadata:
+      SamResourceId: MyLambdaExecutionRole
+
+  # Lambda SNS Full Access Policy
+  LambdaSNSFullAccessPolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: LambdaSNSFullAccessPolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: 'sns:*'
+            Resource: '*'
+      Roles:
+        - !Ref MyLambdaExecutionRole
+
+  LambdaLogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: /aws/lambda/lambda-function-ujwal-test01
+      RetentionInDays: 14
